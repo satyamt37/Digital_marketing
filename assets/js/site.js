@@ -447,24 +447,42 @@ window.NR_CONFIG = {
         .catch(function (err) {
           busy(false);
           if (console && console.error) console.error("[Nimbus Reach] could not send enquiry:", err);
-          show("bad", "We couldn't send that just now. Please WhatsApp or call " + cfg.phone +
-                      " — or use the link below and it will reach us the same way.");
-          sentFallbackLink(pairs);   // a link the visitor may tap, never automatic
+          show("bad", "Our mail server didn't answer just now — sorry. Your details are saved " +
+                      "in the form, so nothing is lost. Send them straight to us in one tap:");
+          sentFallbackLink(pairs);   // links the visitor may tap, never automatic
         });
     });
 
-    /* If the network call fails, offer a one-tap mail-app link so the enquiry
-       still reaches us instead of being lost. */
+    /* If delivery fails, the enquiry must not be lost. Offer two one-tap
+       routes that need no setup at all — WhatsApp first, because it works
+       instantly on a phone and is where most of our customers already are. */
     function sentFallbackLink(pairs) {
       if (!msg || msg.querySelector("a")) return;
-      var a = document.createElement("a");
-      a.href = "mailto:" + cfg.email +
+
+      var wrap = document.createElement("div");
+      wrap.style.cssText = "display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.85rem";
+
+      var wa = document.createElement("a");
+      wa.href = "https://wa.me/" + cfg.phoneRaw + "?text=" + encodeURIComponent(plainBody(pairs));
+      wa.target = "_blank";
+      wa.rel = "noopener";
+      wa.textContent = "Send on WhatsApp";
+      wa.style.cssText = "display:inline-flex;align-items:center;justify-content:center;" +
+        "background:#25D366;color:#fff;font-weight:600;font-size:.9rem;padding:.6rem 1.1rem;" +
+        "border-radius:100px;text-decoration:none;min-height:44px";
+
+      var mail = document.createElement("a");
+      mail.href = "mailto:" + cfg.email +
         "?subject=" + encodeURIComponent(subjectLine(pairs)) +
         "&body=" + encodeURIComponent(plainBody(pairs));
-      a.textContent = "Send it by email instead";
-      a.style.cssText = "display:inline-block;margin-top:.5rem;font-weight:600;text-decoration:underline";
-      msg.appendChild(document.createElement("br"));
-      msg.appendChild(a);
+      mail.textContent = "Send by email";
+      mail.style.cssText = "display:inline-flex;align-items:center;justify-content:center;" +
+        "border:1.5px solid currentColor;font-weight:600;font-size:.9rem;padding:.6rem 1.1rem;" +
+        "border-radius:100px;text-decoration:none;min-height:44px";
+
+      wrap.appendChild(wa);
+      wrap.appendChild(mail);
+      msg.appendChild(wrap);
     }
   }
 
