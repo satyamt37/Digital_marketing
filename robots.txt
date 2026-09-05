@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://satyamt37.github.io/Digital_marketing/sitemap.xml

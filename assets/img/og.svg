@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <radialGradient id="a" cx="80%" cy="12%" r="60%">
+      <stop offset="0" stop-color="#FF5A36" stop-opacity=".38"/>
+      <stop offset="1" stop-color="#FF5A36" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="b" cx="10%" cy="95%" r="55%">
+      <stop offset="0" stop-color="#2E6DF6" stop-opacity=".34"/>
+      <stop offset="1" stop-color="#2E6DF6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="#0E1116"/>
+  <rect width="1200" height="630" fill="url(#a)"/>
+  <rect width="1200" height="630" fill="url(#b)"/>
+
+  <g transform="translate(80 74)">
+    <rect width="52" height="52" rx="15" fill="#FBF8F3"/>
+    <path d="M16 36h18a7.3 7.3 0 0 0 1-14.6 10.2 10.2 0 0 0-19.4-2A7.2 7.2 0 0 0 16 36Z" fill="#0E1116"/>
+    <path d="M25.6 32v-10m0 0-4 4m4-4 4 4" stroke="#FF5A36" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <text x="70" y="36" fill="#FBF8F3" font-size="30" font-weight="700" letter-spacing="-1">Nimbus<tspan fill="#FF5A36">Reach</tspan></text>
+  </g>
+
+  <text x="80" y="290" fill="#FBF8F3" font-size="76" font-weight="700" letter-spacing="-3">Great shops shouldn't</text>
+  <text x="80" y="376" fill="#FBF8F3" font-size="76" font-weight="700" letter-spacing="-3">be hard to find.</text>
+  <path d="M82 396c130-11 320-13 470 2" stroke="#FF5A36" stroke-width="9" stroke-linecap="round" fill="none"/>
+
+  <text x="80" y="452" fill="#FBF8F3" fill-opacity=".68" font-size="27">AI video · real shoots · Meta &amp; Google ads · local SEO</text>
+
+  <g transform="translate(80 512)" font-size="21" fill="#FBF8F3" fill-opacity=".9">
+    <rect width="240" height="52" rx="26" fill="#FF5A36"/>
+    <text x="120" y="33" text-anchor="middle" fill="#fff" font-weight="600">Free 20-min audit</text>
+    <text x="272" y="33" fill-opacity=".55">nimbusreach · +91 89594 59494</text>
+  </g>
+</svg>
