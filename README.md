@@ -39,26 +39,111 @@ Open `assets/js/site.js` and change the top block. Every page picks it up automa
 
 ```js
 window.NR_CONFIG = {
-  email:     "satyamt37@gmail.com",
-  phone:     "+91 89594 59494",
-  phoneRaw:  "918959459494",   // used for tel: and wa.me links
-  address:   "",               // add your address here; leave "" to hide the row
-  accessKey: ""                // see below
+  email:    "satyamt37@gmail.com",
+  phone:    "+91 89594 59494",
+  phoneRaw: "918959459494",   // used for tel: and wa.me links
+  address:  "",               // add your address here; leave "" to hide the row
+  emailjs:  { publicKey: "", serviceId: "", templateId: "" }   // see below
 };
 ```
 
-## Making the contact form email you (2 minutes)
+---
 
-The form works right now — with no key set it opens the visitor's mail app with everything
-pre-filled. To have enquiries land in your inbox automatically instead:
+# 📧 Getting enquiries into your Gmail inbox (EmailJS)
 
-1. Go to **https://web3forms.com** and enter `satyamt37@gmail.com`.
-2. They email you an **access key** immediately. No account, no card, free tier is generous.
-3. Paste it into `accessKey` in `assets/js/site.js`.
-4. Commit and push — done. Every submission arrives as an email with the name, phone,
-   business, service, budget and message.
+The contact form uses **EmailJS**, which connects your own Gmail account and sends each
+enquiry straight to it. No server, no database, free for 200 emails a month.
 
-The form already includes a honeypot field and client-side validation to keep spam down.
+Until it's configured the form still works — it opens the visitor's own mail app with
+everything pre-filled — so no enquiry is ever silently lost.
+
+### Step 1 — Create the account
+Go to **https://www.emailjs.com** and sign up (free plan is fine).
+
+### Step 2 — Connect Gmail
+`Email Services` → **Add New Service** → **Gmail** → *Connect Account* → sign in as
+`satyamt37@gmail.com` and allow access.
+Copy the **Service ID** (looks like `service_ab12cde`).
+
+### Step 3 — Create the template
+`Email Templates` → **Create New Template**.
+
+Set these fields:
+
+| Field | Value |
+|---|---|
+| **Subject** | `{{subject}}` |
+| **To Email** | `satyamt37@gmail.com` |
+| **From Name** | `Nimbus Reach Website` |
+| **Reply To** | `{{reply_to}}` ← *important: lets you hit Reply and answer the customer* |
+
+Then switch the body editor to **Code / HTML** mode and paste exactly this:
+
+```html
+{{{enquiry_html}}}
+```
+
+> Three curly braces, not two. Two braces would escape the HTML and you'd see raw tags.
+
+Save, then copy the **Template ID** (looks like `template_xy34zab`).
+
+### Step 4 — Get your Public Key
+`Account` → `General` → copy the **Public Key**.
+
+### Step 5 — Paste all three into the site
+In `assets/js/site.js`:
+
+```js
+emailjs: {
+  publicKey:  "aB1cD2eF3gH4iJ5kL",
+  serviceId:  "service_ab12cde",
+  templateId: "template_xy34zab"
+}
+```
+
+### Step 6 — Push and test
+```bash
+git add -A && git commit -m "Configure EmailJS" && git push
+```
+Wait a minute for GitHub Pages, open the live contact page, and submit a test enquiry.
+It should arrive in your Gmail within seconds.
+
+---
+
+### What the email looks like
+
+A single clean table, in this order:
+
+| | |
+|---|---|
+| **Name** | Rakesh Sharma |
+| **Phone / WhatsApp** | 98765 43210 |
+| **Email** | rakesh@example.com |
+| **Business & city** | Sharma Sweets, Indore |
+| **Interested in** | AI-generated video ads |
+| **Monthly budget** | ₹15,000 – ₹30,000 |
+| **Message** | *(what they typed)* |
+| **Submitted** | 5 Sep 2026, 9:24 pm IST |
+| **Sent from page** | the page they enquired from |
+
+The subject line is `New enquiry — Sharma Sweets, Indore · AI-generated video ads`, so your
+inbox list is scannable at a glance, and **Reply** goes straight to the customer.
+
+### If it doesn't arrive
+- Check Gmail's **Spam** and **Promotions** tabs, then mark as "Not spam" once.
+- Open the browser console on the contact page — errors are logged with a `[Nimbus Reach]` prefix.
+- Confirm all three IDs are filled in and the Gmail service shows *Connected* in EmailJS.
+- EmailJS dashboard → **History** shows every send attempt and its result.
+
+### Using a different template variable
+If you'd rather build the email layout yourself in EmailJS, these variables are all available:
+`{{from_name}}` `{{email}}` `{{phone}}` `{{business}}` `{{service}}` `{{budget}}`
+`{{message}}` `{{submitted_at}}` `{{page_url}}` `{{subject}}` `{{reply_to}}`
+`{{enquiry_text}}` (plain text version) and `{{{enquiry_html}}}` (the formatted table).
+
+### Spam protection
+The form has a hidden honeypot field and client-side validation. If spam ever becomes a
+problem, turn on reCAPTCHA in the EmailJS template settings.
 
 ---
 

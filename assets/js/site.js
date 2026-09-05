@@ -7,16 +7,33 @@
    1. SITE CONFIG  —  edit these three lines and the whole site updates
    -------------------------------------------------------------------------- */
 window.NR_CONFIG = {
-  email:      "satyamt37@gmail.com",
+  email:      "satyamt37@gmail.com",   // where enquiries are delivered
   phone:      "+91 89594 59494",
   phoneRaw:   "918959459494",          // used for tel: and wa.me links
-  address:    "",                       // leave "" to hide the address row
+  address:    "",                      // leave "" to hide the address row
 
-  /* Email delivery for the contact form.
-     Get a free access key in 30 seconds at https://web3forms.com
-     (enter satyamt37@gmail.com, they email you the key — paste it below).
-     Until it is set, the form falls back to opening the visitor's mail app. */
-  accessKey:  ""
+  /* =====================================================================
+     EMAILJS — how enquiries reach your Gmail inbox
+     =====================================================================
+     EmailJS connects your own Gmail account and sends the enquiry straight
+     to it. Nothing is stored anywhere; there is no database and no server.
+
+     Fill in these three values from your EmailJS dashboard
+     (full step-by-step is in README.md — takes about 5 minutes):
+
+       publicKey   Account  ->  General      ->  Public Key
+       serviceId   Email Services -> your Gmail service  ->  Service ID
+       templateId  Email Templates -> your template      ->  Template ID
+
+     Until all three are filled in, the form stays usable: it falls back to
+     opening the visitor's own mail app with the enquiry pre-filled, so no
+     enquiry is ever silently lost.
+     ===================================================================== */
+  emailjs: {
+    publicKey:  "",     // e.g. "aB1cD2eF3gH4iJ5kL"
+    serviceId:  "",     // e.g. "service_ab12cde"
+    templateId: ""      // e.g. "template_xy34zab"
+  }
 };
 
 (function () {
@@ -241,79 +258,160 @@ window.NR_CONFIG = {
       if (labelText) labelText.textContent = state ? "Sending…" : "Send my free audit request";
     }
 
+    /* The enquiry, as ordered label/value pairs. Both email providers render
+       these as a table, so this ordering is exactly what lands in the inbox. */
+    function buildEnquiry() {
+      var stamp = new Date().toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short"
+      });
+      return [
+        ["Name",             form.name_field.value.trim()],
+        ["Phone / WhatsApp", form.phone.value.trim()],
+        ["Email",            form.email.value.trim()],
+        ["Business & city",  form.business.value.trim() || "— not given —"],
+        ["Interested in",    form.service.value],
+        ["Monthly budget",   form.budget.value],
+        ["Message",          form.message.value.trim()],
+        ["Submitted",        stamp + " IST"],
+        ["Sent from page",   location.href]
+      ];
+    }
+
+    function get(pairs, label) {
+      for (var i = 0; i < pairs.length; i++) if (pairs[i][0] === label) return pairs[i][1];
+      return "";
+    }
+
+    function subjectLine(pairs) {
+      var who = get(pairs, "Business & city");
+      if (who.indexOf("—") === 0) who = get(pairs, "Name");
+      var want = get(pairs, "Interested in");
+      return "New enquiry — " + who + " · " + want;
+    }
+
+    function plainBody(pairs) {
+      return pairs.map(function (p) { return p[0] + ": " + p[1]; }).join("\n");
+    }
+
+    function esc(s) {
+      return String(s).replace(/[&<>"]/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+      });
+    }
+
+    /* A ready-made HTML table, so the email is properly laid out even if the
+       EmailJS template is just {{{enquiry_html}}}. */
+    function htmlTable(pairs) {
+      var rows = pairs.map(function (p) {
+        return '<tr>' +
+          '<td style="padding:10px 14px;border-bottom:1px solid #e6e1d8;' +
+          'font:600 12px/1.4 Arial,sans-serif;color:#6b6459;text-transform:uppercase;' +
+          'letter-spacing:.6px;white-space:nowrap;vertical-align:top">' + esc(p[0]) + '</td>' +
+          '<td style="padding:10px 14px;border-bottom:1px solid #e6e1d8;' +
+          'font:400 15px/1.55 Arial,sans-serif;color:#14181f">' +
+          esc(p[1]).replace(/\n/g, "<br>") + '</td></tr>';
+      }).join("");
+
+      return '<div style="background:#fbf8f3;padding:24px;font-family:Arial,sans-serif">' +
+        '<div style="max-width:600px;margin:0 auto;background:#fff;border:1px solid #e6e1d8;border-radius:12px;overflow:hidden">' +
+        '<div style="background:#0e1116;padding:18px 20px">' +
+        '<div style="font:700 17px/1.2 Arial,sans-serif;color:#fbf8f3">Nimbus<span style="color:#ff5a36">Reach</span></div>' +
+        '<div style="font:400 13px/1.4 Arial,sans-serif;color:#a9a49b;margin-top:4px">New enquiry from the website</div>' +
+        '</div><table style="width:100%;border-collapse:collapse">' + rows + '</table>' +
+        '<div style="padding:14px 20px;background:#f3ede3;font:400 12px/1.5 Arial,sans-serif;color:#6b6459">' +
+        'Reply directly to this email to reach the customer.</div>' +
+        '</div></div>';
+    }
+
+    /* ---- provider 1: EmailJS (primary) ---- */
+    function sendViaEmailJS(pairs) {
+      var e = cfg.emailjs;
+      return emailjs.send(e.serviceId, e.templateId, {
+        // individual fields, usable one by one in the EmailJS template
+        from_name:    get(pairs, "Name"),
+        reply_to:     get(pairs, "Email"),
+        email:        get(pairs, "Email"),
+        phone:        get(pairs, "Phone / WhatsApp"),
+        business:     get(pairs, "Business & city"),
+        service:      get(pairs, "Interested in"),
+        budget:       get(pairs, "Monthly budget"),
+        message:      get(pairs, "Message"),
+        submitted_at: get(pairs, "Submitted"),
+        page_url:     get(pairs, "Sent from page"),
+        subject:      subjectLine(pairs),
+        to_email:     cfg.email,
+        // whole enquiry, pre-formatted
+        enquiry_text: plainBody(pairs),
+        enquiry_html: htmlTable(pairs)
+      }, { publicKey: e.publicKey })
+        .then(function (res) { return res && res.status === 200; });
+    }
+
+    /* ---- fallback: the visitor's own mail app, pre-filled ---- */
+    function sendViaMailto(pairs, note) {
+      window.location.href = "mailto:" + cfg.email +
+        "?subject=" + encodeURIComponent(subjectLine(pairs)) +
+        "&body=" + encodeURIComponent(plainBody(pairs));
+      show("ok", note || ("Opening your email app with everything filled in — just press send. " +
+                          "Prefer WhatsApp? Tap the green button in the corner."));
+    }
+
+    function emailjsReady() {
+      var e = cfg.emailjs || {};
+      return typeof window.emailjs !== "undefined" &&
+             !!e.publicKey && !!e.serviceId && !!e.templateId;
+    }
+
     form.addEventListener("submit", function (e) {
       e.preventDefault();
 
       // honeypot — bots fill hidden fields, humans don't
       if (form.company_website && form.company_website.value) return;
-
       if (!validate()) return;
 
-      var data = {
-        name:     form.name_field.value.trim(),
-        email:    form.email.value.trim(),
-        phone:    form.phone.value.trim(),
-        business: form.business.value.trim(),
-        service:  form.service.value,
-        budget:   form.budget.value,
-        message:  form.message.value.trim()
-      };
+      var pairs = buildEnquiry();
 
-      // ---- no key configured: fall back to the visitor's mail app ----
-      if (!cfg.accessKey) {
-        var body =
-          "Name: " + data.name + "\n" +
-          "Email: " + data.email + "\n" +
-          "Phone: " + data.phone + "\n" +
-          "Business: " + (data.business || "-") + "\n" +
-          "Interested in: " + data.service + "\n" +
-          "Monthly budget: " + data.budget + "\n\n" +
-          data.message;
-
-        window.location.href = "mailto:" + cfg.email +
-          "?subject=" + encodeURIComponent("New enquiry from " + data.name + " — nimbusreach.in") +
-          "&body=" + encodeURIComponent(body);
-
-        show("ok", "Opening your email app with the details filled in — just press send. Prefer WhatsApp? Tap the green button.");
+      if (!emailjsReady()) {
+        if (typeof console !== "undefined" && console.warn) {
+          console.warn("[Nimbus Reach] EmailJS is not configured yet — falling back to the " +
+                       "visitor's mail app. Add publicKey, serviceId and templateId in " +
+                       "assets/js/site.js (see README.md).");
+        }
+        sendViaMailto(pairs);
         return;
       }
 
-      // ---- Web3Forms delivery ----
       busy(true);
-
-      fetch("https://api.web3forms.com/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          access_key: cfg.accessKey,
-          subject: "New enquiry: " + data.name + (data.business ? " (" + data.business + ")" : ""),
-          from_name: "Nimbus Reach website",
-          replyto: data.email,
-          Name: data.name,
-          Email: data.email,
-          Phone: data.phone,
-          Business: data.business || "Not given",
-          Interested_in: data.service,
-          Monthly_budget: data.budget,
-          Message: data.message,
-          Page: location.href
-        })
-      })
-        .then(function (r) { return r.json(); })
-        .then(function (res) {
+      sendViaEmailJS(pairs)
+        .then(function (ok) {
           busy(false);
-          if (res.success) {
-            form.reset();
-            show("ok", "Thank you — your enquiry has landed. We reply within one working day, usually much sooner.");
-          } else {
-            show("bad", "Something went wrong at our end. Please WhatsApp us on " + cfg.phone + " or email " + cfg.email + ".");
-          }
+          if (!ok) throw new Error("EmailJS did not return 200");
+          form.reset();
+          show("ok", "Thank you — your enquiry is with us. We reply within one working day, " +
+                     "usually much sooner. If it's urgent, WhatsApp us on " + cfg.phone + ".");
         })
-        .catch(function () {
+        .catch(function (err) {
           busy(false);
-          show("bad", "Network issue — please WhatsApp us on " + cfg.phone + " or email " + cfg.email + ".");
+          if (typeof console !== "undefined" && console.error) console.error("[Nimbus Reach] EmailJS send failed:", err);
+          show("bad", "We couldn't send that automatically. Please WhatsApp or call " + cfg.phone +
+                      ", or email " + cfg.email + " — sorry for the trouble.");
+          sentFallbackLink(pairs);
         });
     });
+
+    /* If the network call fails, offer a one-tap mail-app link so the enquiry
+       still reaches us instead of being lost. */
+    function sentFallbackLink(pairs) {
+      if (!msg || msg.querySelector("a")) return;
+      var a = document.createElement("a");
+      a.href = "mailto:" + cfg.email +
+        "?subject=" + encodeURIComponent(subjectLine(pairs)) +
+        "&body=" + encodeURIComponent(plainBody(pairs));
+      a.textContent = "Send it by email instead";
+      a.style.cssText = "display:inline-block;margin-top:.5rem;font-weight:600;text-decoration:underline";
+      msg.appendChild(document.createElement("br"));
+      msg.appendChild(a);
+    }
   }
 
   /* ------------------------------------------------------------------------
