@@ -13,27 +13,38 @@ window.NR_CONFIG = {
   address:    "",                      // leave "" to hide the address row
 
   /* =====================================================================
-     EMAILJS — how enquiries reach your Gmail inbox
+     HOW ENQUIRIES REACH YOUR GMAIL INBOX
      =====================================================================
-     EmailJS connects your own Gmail account and sends the enquiry straight
-     to it. Nothing is stored anywhere; there is no database and no server.
+     The form ALWAYS sends over the network when Submit is pressed. It never
+     opens Outlook, Gmail or any other mail app. There is no server and no
+     database — the browser posts the enquiry straight to an email service.
 
-     Fill in these three values from your EmailJS dashboard
-     (full step-by-step is in README.md — takes about 5 minutes):
+     Two senders are tried in order:
 
-       publicKey   Account  ->  General      ->  Public Key
-       serviceId   Email Services -> your Gmail service  ->  Service ID
-       templateId  Email Templates -> your template      ->  Template ID
+     1. EmailJS  — used as soon as the three values below are filled in.
+                   Sends through your own connected Gmail account.
+                   Setup takes ~5 minutes, step by step in README.md:
+                     publicKey   Account -> General
+                     serviceId   Email Services -> your Gmail service
+                     templateId  Email Templates -> your template
 
-     Until all three are filled in, the form stays usable: it falls back to
-     opening the visitor's own mail app with the enquiry pre-filled, so no
-     enquiry is ever silently lost.
+     2. FormSubmit — the automatic fallback, needs no keys and is already
+                   working. The FIRST enquiry sent from the live site makes
+                   FormSubmit email satyamt37@gmail.com a one-time activation
+                   link. Click that link once and every enquiry from then on
+                   lands in the inbox by itself.
+
+     So the form delivers today via FormSubmit, and silently upgrades to
+     EmailJS the moment you paste the three IDs in.
      ===================================================================== */
   emailjs: {
     publicKey:  "",     // e.g. "aB1cD2eF3gH4iJ5kL"
     serviceId:  "",     // e.g. "service_ab12cde"
     templateId: ""      // e.g. "template_xy34zab"
-  }
+  },
+
+  // set to false once EmailJS is configured if you want EmailJS only
+  useFormSubmitFallback: true
 };
 
 (function () {
@@ -347,19 +358,72 @@ window.NR_CONFIG = {
         .then(function (res) { return res && res.status === 200; });
     }
 
-    /* ---- fallback: the visitor's own mail app, pre-filled ---- */
-    function sendViaMailto(pairs, note) {
-      window.location.href = "mailto:" + cfg.email +
-        "?subject=" + encodeURIComponent(subjectLine(pairs)) +
-        "&body=" + encodeURIComponent(plainBody(pairs));
-      show("ok", note || ("Opening your email app with everything filled in — just press send. " +
-                          "Prefer WhatsApp? Tap the green button in the corner."));
+    /* ---- provider 2: FormSubmit — needs no keys at all ----
+       Used automatically whenever EmailJS isn't configured (or fails), so the
+       form always delivers by itself. The very first submission makes
+       FormSubmit email you a one-time activation link; click it once and every
+       enquiry after that arrives in your inbox. It never opens a mail app. */
+    function sendViaFormSubmit(pairs) {
+      var payload = {
+        _subject:  subjectLine(pairs),
+        _template: "table",          // FormSubmit renders a tidy table
+        _captcha:  "false",
+        _replyto:  get(pairs, "Email")
+      };
+      pairs.forEach(function (p) { payload[p[0]] = p[1]; });
+
+      return fetch("https://formsubmit.co/ajax/" + encodeURIComponent(cfg.email), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload)
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (String(res.success) === "true") return true;
+
+          // One-time setup step: FormSubmit emails an "Activate Form" link the
+          // first time an address is used. Make that unmissable in the console.
+          if (res.message && /activat/i.test(res.message)) {
+            if (console && console.error) {
+              console.error(
+                "%c[Nimbus Reach] ONE-TIME SETUP NEEDED\n" +
+                "FormSubmit has emailed an 'Activate Form' link to " + cfg.email + ".\n" +
+                "Open that email and click the link. Every enquiry after that is\n" +
+                "delivered automatically — no code change required.",
+                "font-weight:bold"
+              );
+            }
+          }
+          throw new Error(res.message || "FormSubmit rejected the submission");
+        });
     }
 
     function emailjsReady() {
       var e = cfg.emailjs || {};
       return typeof window.emailjs !== "undefined" &&
              !!e.publicKey && !!e.serviceId && !!e.templateId;
+    }
+
+    /* Try each configured sender in turn. The form is submitted over the
+       network in every case — a mail app is NEVER opened automatically. */
+    function deliver(pairs) {
+      var chain = [];
+      if (emailjsReady()) chain.push({ name: "EmailJS", fn: sendViaEmailJS });
+      if (cfg.useFormSubmitFallback !== false) chain.push({ name: "FormSubmit", fn: sendViaFormSubmit });
+
+      if (!chain.length) return Promise.reject(new Error("no delivery provider configured"));
+
+      return chain.reduce(function (prev, provider) {
+        return prev.catch(function (err) {
+          if (err && console && console.warn) {
+            console.warn("[Nimbus Reach] falling through to " + provider.name + ":", err.message);
+          }
+          return provider.fn(pairs).then(function (ok) {
+            if (!ok) throw new Error(provider.name + " rejected the submission");
+            return provider.name;
+          });
+        });
+      }, Promise.reject(null));
     }
 
     form.addEventListener("submit", function (e) {
@@ -370,32 +434,22 @@ window.NR_CONFIG = {
       if (!validate()) return;
 
       var pairs = buildEnquiry();
-
-      if (!emailjsReady()) {
-        if (typeof console !== "undefined" && console.warn) {
-          console.warn("[Nimbus Reach] EmailJS is not configured yet — falling back to the " +
-                       "visitor's mail app. Add publicKey, serviceId and templateId in " +
-                       "assets/js/site.js (see README.md).");
-        }
-        sendViaMailto(pairs);
-        return;
-      }
-
       busy(true);
-      sendViaEmailJS(pairs)
-        .then(function (ok) {
+
+      deliver(pairs)
+        .then(function (via) {
           busy(false);
-          if (!ok) throw new Error("EmailJS did not return 200");
           form.reset();
+          if (console && console.info) console.info("[Nimbus Reach] enquiry sent via " + via);
           show("ok", "Thank you — your enquiry is with us. We reply within one working day, " +
                      "usually much sooner. If it's urgent, WhatsApp us on " + cfg.phone + ".");
         })
         .catch(function (err) {
           busy(false);
-          if (typeof console !== "undefined" && console.error) console.error("[Nimbus Reach] EmailJS send failed:", err);
-          show("bad", "We couldn't send that automatically. Please WhatsApp or call " + cfg.phone +
-                      ", or email " + cfg.email + " — sorry for the trouble.");
-          sentFallbackLink(pairs);
+          if (console && console.error) console.error("[Nimbus Reach] could not send enquiry:", err);
+          show("bad", "We couldn't send that just now. Please WhatsApp or call " + cfg.phone +
+                      " — or use the link below and it will reach us the same way.");
+          sentFallbackLink(pairs);   // a link the visitor may tap, never automatic
         });
     });
 

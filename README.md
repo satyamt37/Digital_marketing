@@ -49,13 +49,46 @@ window.NR_CONFIG = {
 
 ---
 
-# 📧 Getting enquiries into your Gmail inbox (EmailJS)
+# 📧 Getting enquiries into your Gmail inbox
 
-The contact form uses **EmailJS**, which connects your own Gmail account and sends each
-enquiry straight to it. No server, no database, free for 200 emails a month.
+**The form always sends over the network when Submit is pressed. It never opens Outlook,
+Gmail or any other mail app.** There's no server and no database — the browser posts the
+enquiry directly to an email service.
 
-Until it's configured the form still works — it opens the visitor's own mail app with
-everything pre-filled — so no enquiry is ever silently lost.
+Two senders are tried in order:
+
+| | Sender | Status |
+|---|---|---|
+| 1 | **EmailJS** | Used as soon as the three IDs below are filled in. Sends through your own Gmail. |
+| 2 | **FormSubmit** | Automatic fallback. Needs no keys — but one activation click, below. |
+
+---
+
+## ⚡ Make it work right now — one click, no code
+
+FormSubmit protects an address by requiring you to confirm it once.
+
+1. Open **satyamt37@gmail.com** and look for an email from **FormSubmit** with the subject
+   *"Activate Your Form"* (check **Spam** and **Promotions** too).
+2. Click the **Activate Form** link inside it.
+3. That's it. Every enquiry from the live site now arrives in your inbox automatically.
+
+> That activation email was already triggered while testing the form, so it should
+> already be sitting in your inbox. If you can't find it, just submit the contact form
+> once on the live site and FormSubmit will send a fresh one.
+
+To confirm it's working: submit the form on the live site. You should see the green
+*"Thank you — your enquiry is with us"* banner, and the email arrives within a minute.
+If you instead see the red banner, the activation link hasn't been clicked yet — press
+**F12 → Console** and the page will tell you so in plain English.
+
+---
+
+## 🔒 Optional upgrade: EmailJS
+
+EmailJS sends through your own Gmail account, which means better deliverability and your
+address never appears in the page source. Free for 200 emails a month. Once the three IDs
+below are set, EmailJS is used first and FormSubmit only steps in if it ever fails.
 
 ### Step 1 — Create the account
 Go to **https://www.emailjs.com** and sign up (free plan is fine).
